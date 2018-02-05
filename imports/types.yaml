@@ -1,0 +1,24 @@
+node_types:
+
+  cloudify.nodes.Manager.Configuration:
+    derived_from: cloudify.nodes.Root
+    properties:
+      tenant:
+        default: { get_input: example_tenant_name }
+      plugins:
+        default: []
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          implementation: scripts/configure.py
+          executor: central_deployment_agent
+          inputs:
+            tenant:
+              default: { get_property: [ SELF, tenant ] }
+            plugins:
+              default: { get_property: [ SELF, plugins ] }
+            secrets:
+              default: {}
+        delete:
+          implementation: scripts/unconfigure.py
+          executor: central_deployment_agent

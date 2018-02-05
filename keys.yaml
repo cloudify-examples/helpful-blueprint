@@ -1,0 +1,54 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+- http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
+- http://www.getcloudify.org/spec/utilities-plugin/1.4.5/plugin.yaml
+- imports/types.yaml
+
+inputs:
+
+  agent_key_name:
+    type: string
+    default: agent_key
+
+  local_ssh_directory:
+    type: string
+    default: '~/.ssh'
+
+
+  example_tenant_name:
+    type: string
+    default: 'default_tenant'
+
+node_templates:
+
+  keys_manager_configuration_images:
+    type: cloudify.nodes.Manager.Configuration
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          implementation: scripts/configure.py
+          executor: central_deployment_agent
+          inputs:
+            secrets:
+              agent_key_private: { get_attribute: [ agent_key, private_key_export ] }
+              agent_key_public: { get_attribute: [ agent_key, public_key_export ] }
+    relationships:
+    - type: cloudify.relationships.depends_on
+      target: agent_key
+
+  agent_key:
+    type: cloudify.keys.nodes.RSAKey
+    properties:
+      resource_config:
+        public_key_path: { concat: [ { get_input: local_ssh_directory }, { get_input: agent_key_name }, '.pub' ] }
+        private_key_path: { concat: [ { get_input: local_ssh_directory }, { get_input: agent_key_name } ] }
+        openssh_format: true
+      use_secret_store: false
+      key_name: { get_input: agent_key_name }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: keys.cloudify_ssh_key.operations.create
+          inputs:
+            store_private_key_material: true
